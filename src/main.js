@@ -214,16 +214,26 @@ class SatelliteDataApp {
     this.state.footprintLayers = new L.FeatureGroup();
     this.state.map.addLayer(this.state.footprintLayers);
 
+    // Ensure Leaflet Draw real-time area tooltip strictly displays in km²
+    if (typeof L !== 'undefined' && L.GeometryUtil) {
+        L.GeometryUtil.readableArea = function (area) {
+            return (area / 1000000).toFixed(2) + ' km²';
+        };
+    }
+
     this.state.drawControl = new L.Control.Draw({
         edit: { featureGroup: this.state.drawnItems },
         draw: {
             polygon: {
                 allowIntersection: false,
                 drawError: { color: '#e1e100', message: '<strong>Polygon shape cannot cross itself!</strong>' },
-                shapeOptions: { color: '#2563EB', fillOpacity: 0.2 }
+                shapeOptions: { color: '#2563EB', fillOpacity: 0.2 },
+                showArea: true,
+                metric: true
             },
             rectangle: {
-                shapeOptions: { color: '#2563EB', fillOpacity: 0.2 }
+                shapeOptions: { color: '#2563EB', fillOpacity: 0.2 },
+                metric: true
             },
             polyline: false,
             circle: false,
@@ -458,28 +468,11 @@ class SatelliteDataApp {
     this.elements.searchLat.value = cleanLat;
     this.elements.searchLon.value = cleanLon;
 
-    this.state.map.flyTo([cleanLat, cleanLon], 13, { duration: 1.2 });
+    // Fly to point and place target pin without auto-drawing bounding box
+    this.state.map.flyTo([cleanLat, cleanLon], 14, { duration: 1.2 });
     this.placeHitMarker(cleanLat, cleanLon);
 
-    // Create automatic 2km x 2km AOI box around point
-    const bufferDistanceKm = 1.0;
-    const point = turf.point([cleanLon, cleanLat]);
-    const buffered = turf.buffer(point, bufferDistanceKm, { units: 'kilometers' });
-    const bbox = turf.bbox(buffered);
-    const bboxPolygon = turf.bboxPolygon(bbox);
-
-    this.state.drawnItems.clearLayers();
-    const layer = L.geoJSON(bboxPolygon, {
-        style: {
-            color: '#2563EB',
-            weight: 2,
-            fillColor: '#3B82F6',
-            fillOpacity: 0.25
-        }
-    }).addTo(this.state.drawnItems);
-
-    this.updateCurrentPolygon(bboxPolygon);
-    this.updateStatus(`📍 Navigated to Lat ${cleanLat}, Lon ${cleanLon}. Created 2km AOI.`);
+    this.updateStatus(`📍 Navigated to Lat ${cleanLat}, Lon ${cleanLon}. Draw your custom AOI polygon using map tools on the left.`);
   }
 
   placeHitMarker(lat, lon) {
@@ -975,7 +968,14 @@ class SatelliteDataApp {
         if (result.success) {
             const folder = result.folderName || 'downloads';
             const files = result.savedFiles ? result.savedFiles.join(', ') : 'files';
-            this.updateStatus(`✅ Saved to folder "${folder}": [${files}]`);
+            
+            // Trigger automatic browser file download (Chrome download style)
+            if (result.zipDownloadUrl) {
+                this.triggerDirectZipDownload(result.zipDownloadUrl, result.zipFileName);
+                this.updateStatus(`✅ Download started: ${result.zipFileName} [${files}]`);
+            } else {
+                this.updateStatus(`✅ Saved to folder "${folder}": [${files}]`);
+            }
             console.log('✅ Export Details:', result);
         } else {
             throw new Error(result.error || 'Export failed on server');
@@ -985,6 +985,18 @@ class SatelliteDataApp {
         this.updateStatus(`❌ Export Error: ${e.message}`);
         console.error(e);
     }
+  }
+
+  triggerDirectZipDownload(zipDownloadUrl, zipFileName) {
+    if (!zipDownloadUrl) return;
+    const fullUrl = zipDownloadUrl.startsWith('http') ? zipDownloadUrl : `${this.geeClient.backendUrl}${zipDownloadUrl}`;
+    const link = document.createElement('a');
+    link.href = fullUrl;
+    link.download = zipFileName || 'satellite_aoi_bundle.zip';
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 
   async downloadMosaicBundle(date, satellite, options = {}) {
@@ -1027,7 +1039,12 @@ class SatelliteDataApp {
         setTimeout(() => this.hideProgress(), 500);
 
         if (result.success) {
-            this.updateStatus(`✅ Saved date mosaic to "${result.folderName}": [${result.savedFiles.join(', ')}]`);
+            if (result.zipDownloadUrl) {
+                this.triggerDirectZipDownload(result.zipDownloadUrl, result.zipFileName);
+                this.updateStatus(`✅ Mosaic download started: ${result.zipFileName} [${result.savedFiles.join(', ')}]`);
+            } else {
+                this.updateStatus(`✅ Saved date mosaic to "${result.folderName}": [${result.savedFiles.join(', ')}]`);
+            }
         } else {
             throw new Error(result.error || 'Mosaic export failed');
         }

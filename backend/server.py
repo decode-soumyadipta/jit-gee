@@ -13,6 +13,7 @@ import urllib.request
 import math
 import os
 from datetime import datetime, timedelta, timezone
+import zipfile
 
 app = Flask(__name__, static_folder='..', static_url_path='')
 CORS(app)  # Enable CORS for frontend requests
@@ -183,6 +184,32 @@ def robots():
 def sitemap():
     """Serve sitemap.xml for SEO indexing"""
     return send_from_directory('..', 'sitemap.xml')
+
+
+@app.route('/api/download-zip/<path:folder_name>')
+def download_zip(folder_name):
+    """Serve the zipped AOI export archive for direct browser download."""
+    try:
+        downloads_base = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'downloads'))
+        zip_filename = f"{folder_name}.zip" if not folder_name.endswith('.zip') else folder_name
+        clean_folder = folder_name[:-4] if folder_name.endswith('.zip') else folder_name
+        zip_filepath = os.path.join(downloads_base, zip_filename)
+        
+        if not os.path.exists(zip_filepath):
+            target_dir = os.path.join(downloads_base, clean_folder)
+            if os.path.exists(target_dir):
+                with zipfile.ZipFile(zip_filepath, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                    for root, dirs, files in os.walk(target_dir):
+                        for f in files:
+                            fpath = os.path.join(root, f)
+                            arcname = os.path.relpath(fpath, target_dir)
+                            zipf.write(fpath, arcname)
+            else:
+                return jsonify({'error': 'Archive not found'}), 404
+        
+        return send_from_directory(downloads_base, zip_filename, as_attachment=True, download_name=zip_filename)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/<path:path>')
@@ -816,6 +843,20 @@ def export_geotiff():
         with open(meta_file_path, 'w') as mf:
             json.dump(metadata_dict, mf, indent=2)
         
+        # 4. Create Downloadable ZIP Archive for direct browser saving
+        zip_filename = f"{folder_name}.zip"
+        zip_filepath = os.path.join(downloads_base, zip_filename)
+        try:
+            with zipfile.ZipFile(zip_filepath, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for root, dirs, files in os.walk(target_dir):
+                    for f in files:
+                        fpath = os.path.join(root, f)
+                        arcname = os.path.relpath(fpath, target_dir)
+                        zipf.write(fpath, arcname)
+            print(f"📦 Created ZIP Archive: {zip_filename}", flush=True)
+        except Exception as ze:
+            print(f"⚠️ Error creating zip archive: {ze}", flush=True)
+        
         return jsonify({
             'success': True,
             'folderName': folder_name,
@@ -824,6 +865,8 @@ def export_geotiff():
             'savedDemFile': saved_dem_filename,
             'imageDownloadUrl': image_download_url,
             'demDownloadUrl': dem_download_url,
+            'zipDownloadUrl': f"/api/download-zip/{folder_name}",
+            'zipFileName': zip_filename,
             'savedFiles': [f for f in [saved_image_filename, saved_dem_filename, 'metadata.json'] if f],
             'scale': scale,
             'message': f'Saved files into {folder_name}'

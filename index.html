@@ -4,11 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Professional Satellite Data Acquisition Portal. Fetch and export Sentinel-1 SAR, Sentinel-2 Optical (10m native), and 30m Global DEM with Google Earth Engine pipelines.">
-    <meta name="keywords" content="satellite data, sentinel-2, sentinel-1, SAR, earth engine, GEE, DEM, SRTM, GIS, remote sensing, geospatial monitoring, mining surveillance">
+    <meta name="description"
+        content="Professional Satellite Data Acquisition Portal. Fetch and export Sentinel-1 SAR, Sentinel-2 Optical (10m native), and 30m Global DEM with Google Earth Engine pipelines.">
+    <meta name="keywords"
+        content="satellite data, sentinel-2, sentinel-1, SAR, earth engine, GEE, DEM, SRTM, GIS, remote sensing, geospatial monitoring, mining surveillance">
     <meta name="robots" content="index, follow">
     <meta property="og:title" content="Satellite Data Acquisition Portal - Earth Engine Professional">
-    <meta property="og:description" content="High-precision Sentinel-1 SAR, Sentinel-2 Optical, and 30m Global Elevation GeoTIFF acquisition interface.">
+    <meta property="og:description"
+        content="High-precision Sentinel-1 SAR, Sentinel-2 Optical, and 30m Global Elevation GeoTIFF acquisition interface.">
     <meta property="og:type" content="website">
     <title>Satellite Data Acquisition Portal | Google Earth Engine Geospatial System</title>
     <!-- Google Fonts -->
@@ -26,32 +29,33 @@
 </head>
 
 <body>
-    <!-- Passcode Landing Screen / Access Gate -->
+    <!-- Formal Passcode Landing Screen / Access Gate -->
     <div id="auth-gate-overlay" class="auth-gate-overlay">
         <div class="auth-gate-card">
-            <div class="gate-icon-wrapper">
-                <div class="gate-orbit"></div>
-                <span class="gate-sat-icon">🛰️</span>
-            </div>
-            <h2>Satellite Data Acquisition</h2>
-            <p class="gate-subtitle">Restricted Access Geospatial Portal</p>
-            <p class="gate-desc">Enter your authorized security passcode to access Google Earth Engine pipelines.</p>
+            <div class="gate-header-badge">RESTRICTED ACCESS</div>
+            <h2>SATELLITE DATA ACQUISITION PORTAL</h2>
+            <p class="gate-subtitle">GEOSPATIAL SURVEILLANCE & EARTH OBSERVATION SYSTEM</p>
+            <div class="gate-divider"></div>
+            <p class="gate-desc">Authorized credential verification is required to initialize Google Earth Engine computation pipelines.</p>
 
             <form id="auth-gate-form" class="gate-form" onsubmit="return false;">
-                <div class="gate-input-wrapper">
-                    <span class="gate-lock-icon">🔒</span>
-                    <input type="password" id="gate-passcode-input" class="gate-input" placeholder="Enter Access Code..." autocomplete="current-password" autofocus required>
-                    <button type="button" id="gate-toggle-pwd" class="gate-toggle-pwd" title="Show/Hide Passcode">👁️</button>
+                <div class="gate-form-group">
+                    <label for="gate-passcode-input" class="gate-input-label">SYSTEM ACCESS KEY</label>
+                    <div class="gate-input-wrapper">
+                        <input type="password" id="gate-passcode-input" class="gate-input"
+                            placeholder="Enter system access key..." autocomplete="current-password" autofocus required>
+                        <button type="button" id="gate-toggle-pwd" class="gate-toggle-pwd"
+                            title="Toggle Key Visibility">SHOW</button>
+                    </div>
                 </div>
                 <div id="gate-error-msg" class="gate-error-msg"></div>
                 <button type="submit" id="gate-unlock-btn" class="gate-btn">
-                    <span>Unlock Portal</span>
-                    <span class="gate-arrow">→</span>
+                    <span>AUTHENTICATE & ENTER PORTAL</span>
                 </button>
             </form>
 
             <div class="gate-footer-note">
-                <span>🔐 End-to-End Authenticated via Google Service Account</span>
+                <span>AUTHENTICATION PROTOCOL • GOOGLE EARTH ENGINE CLOUD IAM</span>
             </div>
         </div>
     </div>
@@ -72,22 +76,22 @@
                     <div class="coord-inputs">
                         <div class="coord-field">
                             <span class="coord-label">LAT</span>
-                            <input type="number" id="search-lat" placeholder="23.26252" step="0.00001" min="-90" max="90"
-                                title="Latitude up to 5 decimal places">
+                            <input type="number" id="search-lat" placeholder="23.26252" step="0.00001" min="-90"
+                                max="90" title="Latitude up to 5 decimal places">
                         </div>
                         <div class="coord-field">
                             <span class="coord-label">LON</span>
-                            <input type="number" id="search-lon" placeholder="77.43924" step="0.00001" min="-180" max="180"
-                                title="Longitude up to 5 decimal places">
+                            <input type="number" id="search-lon" placeholder="77.43924" step="0.00001" min="-180"
+                                max="180" title="Longitude up to 5 decimal places">
                         </div>
                     </div>
-                    <button id="search-coord-btn" class="coord-btn" title="Locate point and generate 2km AOI">
-                        <span>📍 Locate & Set AOI</span>
+                    <button id="search-coord-btn" class="coord-btn" title="Navigate to coordinates and place location pin">
+                        <span>Locate Coordinate</span>
                     </button>
                 </div>
 
                 <button id="header-lock-btn" class="header-lock-btn" title="Lock Portal / Sign Out">
-                    <span>🔒 Lock</span>
+                    <span>Lock Session</span>
                 </button>
             </div>
         </div>
@@ -103,9 +107,9 @@
                 </div>
                 <div class="aoi-controls">
                     <button id="aoi-btn" class="formal-btn btn-primary">
-                        <span>📁 Import AOI (.kml)</span>
+                        <span>Import KML Polygon</span>
                     </button>
-                    <p class="control-help">Or enter Lat/Lon in top-right, or use map tools to draw a polygon.</p>
+                    <p class="control-help">Or locate coordinates above and use map draw tools (polygon/rectangle) to draw your AOI.</p>
                 </div>
             </section>
 
@@ -131,12 +135,11 @@
                     <div class="form-row">
                         <div class="label-with-hint">
                             <label for="cloud-cover-input">Max Cloud Cover (%):</label>
-                            <span class="value-hint" id="cloud-value-display">20%</span>
+                            <span class="value-hint" id="cloud-value-display">40%</span>
                         </div>
-                        <input type="number" id="cloud-cover-input" class="formal-input" min="0" max="100" value="20"
-                            placeholder="20">
-                        <p class="control-help">Filters optical imagery. If none under threshold, returns clearest
-                            available.</p>
+                        <input type="number" id="cloud-cover-input" class="formal-input" min="0" max="100" value="40"
+                            placeholder="40">
+                        <p class="control-help">Recommended: 10–20% (Dry Season), 40–60% (Monsoon/Rainy Season), 80–100% (All Available).</p>
                     </div>
                 </div>
             </section>
@@ -148,7 +151,7 @@
                 </div>
                 <div class="action-buttons">
                     <button id="fetch-btn" class="formal-btn btn-success" disabled>
-                        <span>🔍 Fetch Available Data</span>
+                        <span>Fetch Available Data</span>
                     </button>
 
                     <div class="dem-toggle-wrapper">
@@ -156,17 +159,17 @@
                             <input type="checkbox" id="include-dem-checkbox" checked>
                             <span class="checkbox-custom"></span>
                             <span class="checkbox-text">
-                                <strong>Include SRTM 30m DEM</strong>
-                                <small>Seamless elevation mosaic for AOI</small>
+                                <strong>Include 30m Global DEM</strong>
+                                <small>Copernicus GLO-30 / NASA SRTM 30m</small>
                             </span>
                         </label>
                     </div>
 
                     <button id="download-best-btn" class="formal-btn btn-warning" disabled>
-                        <span>⭐ Download Best (Pre/Post)</span>
+                        <span>Download Best (Pre/Post)</span>
                     </button>
                     <button id="download-btn" class="formal-btn btn-secondary" disabled>
-                        <span>📥 Download Selected (.tif)</span>
+                        <span>Download Selected (.zip)</span>
                     </button>
                 </div>
             </section>
@@ -287,7 +290,7 @@
     </div>
 
     <footer class="formal-footer">
-        <p>&copy; 2026 Satellite Data Acquisition System | Mining Area Surveillance & Geospatial Analysis Division</p>
+        <p>&copy; 2026 Satellite Data Acquisition System | Soumo</p>
     </footer>
 
     <!-- Leaflet JS -->
