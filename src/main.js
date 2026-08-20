@@ -204,15 +204,56 @@ class SatelliteDataApp {
         attributionControl: true
     }).setView([23.2599, 77.4126], 6);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors | GEE & SRTM NASA'
-    }).addTo(this.state.map);
+    // Define High Quality Base Maps
+    const osmStandard = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors | GEE & SRTM'
+    });
+
+    const esriSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19,
+        attribution: 'Tiles &copy; Esri &mdash; High-Resolution Earth Imagery'
+    });
+
+    const esriTerrain = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19,
+        attribution: 'Tiles &copy; Esri &mdash; Topographic & Elevation Map'
+    });
+
+    const cartoDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap &copy; CARTO'
+    });
+
+    const hybridLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19,
+        attribution: 'Boundaries & Labels &copy; Esri'
+    });
+
+    // Default base layer
+    osmStandard.addTo(this.state.map);
 
     this.state.drawnItems = new L.FeatureGroup();
     this.state.map.addLayer(this.state.drawnItems);
 
     this.state.footprintLayers = new L.FeatureGroup();
     this.state.map.addLayer(this.state.footprintLayers);
+
+    // Layer Switcher Control (Top-Right)
+    const baseMaps = {
+        "🗺️ Standard Map (OSM)": osmStandard,
+        "🛰️ Satellite Imagery (HD)": esriSatellite,
+        "🏔️ Terrain / Topographic": esriTerrain,
+        "🌙 Dark Mode Canvas": cartoDark
+    };
+
+    const overlayMaps = {
+        "📍 Area of Interest (AOI)": this.state.drawnItems,
+        "📡 Scene Swath Footprints": this.state.footprintLayers,
+        "🏷️ Boundaries & Place Labels": hybridLabels
+    };
+
+    L.control.layers(baseMaps, overlayMaps, { position: 'topright', collapsed: true }).addTo(this.state.map);
 
     // Ensure Leaflet Draw real-time area tooltip strictly displays in km²
     if (typeof L !== 'undefined' && L.GeometryUtil) {
@@ -1075,8 +1116,11 @@ class SatelliteDataApp {
         setTimeout(() => this.hideProgress(), 500);
 
         if (result.success) {
-            if (result.zipDownloadUrl) {
-                this.triggerDirectZipDownload(result.zipDownloadUrl, result.zipFileName);
+            if (result.downloadType === 'file' && result.directFileDownloadUrl) {
+                this.triggerDirectFileDownload(result.directFileDownloadUrl, result.directFileName);
+                this.updateStatus(`✅ Mosaic download started: ${result.directFileName}`);
+            } else if (result.zipDownloadUrl) {
+                this.triggerDirectFileDownload(result.zipDownloadUrl, result.zipFileName);
                 this.updateStatus(`✅ Mosaic download started: ${result.zipFileName} [${result.savedFiles.join(', ')}]`);
             } else {
                 this.updateStatus(`✅ Saved date mosaic to "${result.folderName}": [${result.savedFiles.join(', ')}]`);

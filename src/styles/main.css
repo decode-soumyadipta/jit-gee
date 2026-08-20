@@ -1339,6 +1339,36 @@ label {
     40%, 60% { transform: translate3d(5px, 0, 0); }
 }
 
+/* Leaflet Layer Control Styling */
+.leaflet-control-layers {
+    border: 1px solid var(--border) !important;
+    border-radius: 6px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+    font-family: var(--font-sans) !important;
+    font-size: 0.78rem !important;
+    background: rgba(255, 255, 255, 0.96) !important;
+    backdrop-filter: blur(8px);
+}
+
+.leaflet-control-layers-expanded {
+    padding: 0.75rem 1rem !important;
+}
+
+.leaflet-control-layers-base label,
+.leaflet-control-layers-overlays label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.35rem;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.leaflet-control-layers-separator {
+    margin: 0.5rem 0 !important;
+    border-top: 1px solid var(--border-light) !important;
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
     .app-layout {
