@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Professional Satellite Data Acquisition Portal. Fetch and export Sentinel-1 SAR, Sentinel-2 Optical (10m native), and 30m Global DEM with Google Earth Engine pipelines.">
+    <meta name="keywords" content="satellite data, sentinel-2, sentinel-1, SAR, earth engine, GEE, DEM, SRTM, GIS, remote sensing, geospatial monitoring, mining surveillance">
+    <meta name="robots" content="index, follow">
+    <meta property="og:title" content="Satellite Data Acquisition Portal - Earth Engine Professional">
+    <meta property="og:description" content="High-precision Sentinel-1 SAR, Sentinel-2 Optical, and 30m Global Elevation GeoTIFF acquisition interface.">
+    <meta property="og:type" content="website">
+    <title>Satellite Data Acquisition Portal | Google Earth Engine Geospatial System</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <!-- Leaflet Draw CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+    <link rel="stylesheet" href="src/styles/main.css?v=6.0">
+</head>
+
+<body>
+    <!-- Passcode Landing Screen / Access Gate -->
+    <div id="auth-gate-overlay" class="auth-gate-overlay">
+        <div class="auth-gate-card">
+            <div class="gate-icon-wrapper">
+                <div class="gate-orbit"></div>
+                <span class="gate-sat-icon">🛰️</span>
+            </div>
+            <h2>Satellite Data Acquisition</h2>
+            <p class="gate-subtitle">Restricted Access Geospatial Portal</p>
+            <p class="gate-desc">Enter your authorized security passcode to access Google Earth Engine pipelines.</p>
+
+            <form id="auth-gate-form" class="gate-form" onsubmit="return false;">
+                <div class="gate-input-wrapper">
+                    <span class="gate-lock-icon">🔒</span>
+                    <input type="password" id="gate-passcode-input" class="gate-input" placeholder="Enter Access Code..." autocomplete="current-password" autofocus required>
+                    <button type="button" id="gate-toggle-pwd" class="gate-toggle-pwd" title="Show/Hide Passcode">👁️</button>
+                </div>
+                <div id="gate-error-msg" class="gate-error-msg"></div>
+                <button type="submit" id="gate-unlock-btn" class="gate-btn">
+                    <span>Unlock Portal</span>
+                    <span class="gate-arrow">→</span>
+                </button>
+            </form>
+
+            <div class="gate-footer-note">
+                <span>🔐 End-to-End Authenticated via Google Service Account</span>
+            </div>
+        </div>
+    </div>
+
+    <header class="formal-header">
+        <div class="header-container">
+            <div class="header-brand">
+                <span class="logo-badge">GEE PRO</span>
+                <div>
+                    <h1>Satellite Data Acquisition System</h1>
+                    <p class="header-subtitle">Sentinel-1 SAR • Sentinel-2 Optical • 30m Global DEM</p>
+                </div>
+            </div>
+
+            <!-- Top Right Coordinate Search Bar & Logout -->
+            <div class="header-right-actions">
+                <div class="header-coord-search" id="coord-search-container">
+                    <div class="coord-inputs">
+                        <div class="coord-field">
+                            <span class="coord-label">LAT</span>
+                            <input type="number" id="search-lat" placeholder="23.26252" step="0.00001" min="-90" max="90"
+                                title="Latitude up to 5 decimal places">
+                        </div>
+                        <div class="coord-field">
+                            <span class="coord-label">LON</span>
+                            <input type="number" id="search-lon" placeholder="77.43924" step="0.00001" min="-180" max="180"
+                                title="Longitude up to 5 decimal places">
+                        </div>
+                    </div>
+                    <button id="search-coord-btn" class="coord-btn" title="Locate point and generate 2km AOI">
+                        <span>📍 Locate & Set AOI</span>
+                    </button>
+                </div>
+
+                <button id="header-lock-btn" class="header-lock-btn" title="Lock Portal / Sign Out">
+                    <span>🔒 Lock</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="app-layout" id="app-layout">
+        <!-- Sidebar for Controls -->
+        <aside class="sidebar">
+            <section class="control-group">
+                <div class="section-title-row">
+                    <h3>1. Area of Interest</h3>
+                    <span class="step-badge">Step 1</span>
+                </div>
+                <div class="aoi-controls">
+                    <button id="aoi-btn" class="formal-btn btn-primary">
+                        <span>📁 Import AOI (.kml)</span>
+                    </button>
+                    <p class="control-help">Or enter Lat/Lon in top-right, or use map tools to draw a polygon.</p>
+                </div>
+            </section>
+
+            <section class="control-group">
+                <div class="section-title-row">
+                    <h3>2. Target Parameters</h3>
+                    <span class="step-badge">Step 2</span>
+                </div>
+                <div class="parameter-selection">
+                    <div class="form-row">
+                        <label for="target-date-input">Target Date:</label>
+                        <input type="date" id="target-date-input" class="formal-input">
+                    </div>
+                    <div class="form-row">
+                        <div class="label-with-hint">
+                            <label for="buffer-days-input">Search Buffer (± Days):</label>
+                            <span class="value-hint" id="buffer-value-display">±30 days</span>
+                        </div>
+                        <input type="number" id="buffer-days-input" class="formal-input" min="1" max="500" value="30"
+                            placeholder="30">
+                        <p class="control-help">Search window: Target Date ± Buffer (1 to 500 days).</p>
+                    </div>
+                    <div class="form-row">
+                        <div class="label-with-hint">
+                            <label for="cloud-cover-input">Max Cloud Cover (%):</label>
+                            <span class="value-hint" id="cloud-value-display">20%</span>
+                        </div>
+                        <input type="number" id="cloud-cover-input" class="formal-input" min="0" max="100" value="20"
+                            placeholder="20">
+                        <p class="control-help">Filters optical imagery. If none under threshold, returns clearest
+                            available.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="control-group">
+                <div class="section-title-row">
+                    <h3>3. Operations</h3>
+                    <span class="step-badge">Step 3</span>
+                </div>
+                <div class="action-buttons">
+                    <button id="fetch-btn" class="formal-btn btn-success" disabled>
+                        <span>🔍 Fetch Available Data</span>
+                    </button>
+
+                    <div class="dem-toggle-wrapper">
+                        <label class="dem-checkbox-label">
+                            <input type="checkbox" id="include-dem-checkbox" checked>
+                            <span class="checkbox-custom"></span>
+                            <span class="checkbox-text">
+                                <strong>Include SRTM 30m DEM</strong>
+                                <small>Seamless elevation mosaic for AOI</small>
+                            </span>
+                        </label>
+                    </div>
+
+                    <button id="download-best-btn" class="formal-btn btn-warning" disabled>
+                        <span>⭐ Download Best (Pre/Post)</span>
+                    </button>
+                    <button id="download-btn" class="formal-btn btn-secondary" disabled>
+                        <span>📥 Download Selected (.tif)</span>
+                    </button>
+                </div>
+            </section>
+
+            <section id="status-container" class="status-panel">
+                <div class="status-header">
+                    <h4>System Status</h4>
+                    <span id="status-indicator-dot" class="status-dot online"></span>
+                </div>
+                <p id="status-message">Ready</p>
+                <div id="area-display" class="area-info" style="display: none;">
+                    <div>AOI Area: <span id="polygon-area-value">0</span> km²</div>
+                    <div id="aoi-centroid-value" class="centroid-text">Centroid: --</div>
+                </div>
+            </section>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="content-area" id="content-area">
+            <!-- Map Section -->
+            <section class="map-section" id="map-section">
+                <div id="map"></div>
+                <!-- Map Floating Helper Controls -->
+                <div class="map-overlay-badge">
+                    <span id="map-coord-hover">Lat: 0.00000 | Lon: 0.00000</span>
+                </div>
+            </section>
+
+            <!-- Vertical Resizer Bar -->
+            <div class="panel-resizer" id="panel-resizer" title="Drag vertically to resize map & results">
+                <div class="resizer-pill">
+                    <span class="resizer-icon">⠿</span>
+                    <span class="resizer-text">DRAG TO RESIZE</span>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <section class="results-section" id="results-section">
+                <div class="results-header">
+                    <div class="results-title-group">
+                        <h2>Available Satellite Assets</h2>
+                        <span id="results-count-badge" class="count-badge">0 Assets</span>
+                    </div>
+                    <div class="results-legend">
+                        <span class="legend-item"><span class="legend-color s1"></span> Sentinel-1 (SAR)</span>
+                        <span class="legend-item"><span class="legend-color s2"></span> Sentinel-2 (Optical)</span>
+                        <span class="legend-item"><span class="legend-color dem"></span> SRTM 30m (DEM)</span>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="metadata-table" class="formal-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 36px;"><input type="checkbox" id="select-all-scenes"></th>
+                                <th>Satellite</th>
+                                <th>Tile / Collection</th>
+                                <th>Acquisition Date</th>
+                                <th>AOI Coverage</th>
+                                <th>Cloud Cover</th>
+                                <th>Orbit</th>
+                                <th>Proximity</th>
+                                <th style="text-align: right;">Footprint & Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="metadata-table-body">
+                            <tr>
+                                <td colspan="9" class="empty-state">
+                                    <div class="empty-state-content">
+                                        <span class="empty-icon">🛰️</span>
+                                        <p>No data fetched yet. Define an area and target date to begin.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modals and Overlays -->
+    <div id="error-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>⚠️ System Notification</h2>
+                <button class="close-modal" id="close-error-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="error-message"></p>
+                <details id="error-details-container" style="display: none;">
+                    <summary>Technical Details</summary>
+                    <pre id="error-details"></pre>
+                </details>
+            </div>
+            <div class="modal-footer">
+                <button id="error-dismiss-btn" class="formal-btn btn-primary">Acknowledge</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enhanced On-Screen Progress Overlay -->
+    <div id="progress-indicator" class="overlay" style="display: none;">
+        <div class="overlay-card">
+            <div class="progress-orbit-spinner">
+                <div class="orbit-center">🌍</div>
+                <div class="satellite-orbit"><span class="sat-icon">🛰️</span></div>
+            </div>
+            <h3 id="progress-title">Processing Satellite Request</h3>
+            <p id="progress-message">Connecting to Google Earth Engine...</p>
+
+            <div class="progress-bar-container">
+                <div id="progress-bar-fill" class="progress-bar-fill" style="width: 0%;"></div>
+            </div>
+            <div class="progress-step-list" id="progress-step-list">
+                <!-- Step items injected dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <footer class="formal-footer">
+        <p>&copy; 2026 Satellite Data Acquisition System | Mining Area Surveillance & Geospatial Analysis Division</p>
+    </footer>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Leaflet Draw JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    <!-- Turf.js for area calculation -->
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+    <!-- Main Application Script -->
+    <script type="module" src="src/main.js?v=5.0"></script>
+</body>
+
+</html>

@@ -1,0 +1,85 @@
+# ==============================================================================
+# Git Ignore Configuration for Satellite Data Acquisition Portal
+# ==============================================================================
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Large archives & local environments
+*.zip
+*.tar.gz
+*.tgz
+*.rar
+jit-gee-env.zip
+node-portable/
+
+# Node.js dependencies & builds
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Python cache & environments
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+
+# Sensitive Google Service Account credentials (SECURITY CRITICAL)
+*serviceaccount*.json
+*service-account*.json
+*credentials*.json
+*mining-detection*.json
+backend/*mining-detection*.json
+backend/*.json
+!backend/package*.json
+!package.json
+!package-lock.json
+
+# Local downloads & raster data
+downloads/
+*.tif
+*.tiff
+*.geotiff
+*.jp2
+*.hgt
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+
+# IDE and Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace

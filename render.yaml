@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: satellite-acquisition-portal
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: gunicorn --chdir backend server:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: GEE_SERVICE_ACCOUNT_JSON
+        sync: false
