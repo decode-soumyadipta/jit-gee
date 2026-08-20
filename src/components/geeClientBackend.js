@@ -12,7 +12,8 @@ class GEEClientBackend {
   constructor() {
     this.initialized = false;
     this.authenticated = false;
-    this.backendUrl = 'http://localhost:5002';
+    // Dynamically use current host origin (works both locally and on Render/Cloud)
+    this.backendUrl = (typeof window !== 'undefined' && window.location.origin) ? window.location.origin : '';
   }
 
   /**
