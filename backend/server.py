@@ -186,6 +186,39 @@ def sitemap():
     return send_from_directory('..', 'sitemap.xml')
 
 
+@app.before_request
+def enforce_security_auth():
+    """Strictly protect all /api/ endpoints to prevent unauthenticated access."""
+    # Allow public access only to web interface, static assets, verification, and health status
+    public_endpoints = ['/api/auth/verify', '/api/health']
+    if request.path.startswith('/api/') and request.path not in public_endpoints:
+        if not check_auth(request):
+            return jsonify({
+                'error': 'Unauthorized: Valid security access key required.',
+                'authenticated': False
+            }), 401
+
+
+@app.route('/api/download-file/<path:file_path>')
+def download_file(file_path):
+    """Serve a single GeoTIFF file directly for browser download."""
+    try:
+        downloads_base = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'downloads'))
+        target_file = os.path.abspath(os.path.join(downloads_base, file_path))
+        
+        # Path traversal security check
+        if not target_file.startswith(downloads_base):
+            return jsonify({'error': 'Unauthorized path access'}), 403
+            
+        if not os.path.exists(target_file) or not os.path.isfile(target_file):
+            return jsonify({'error': 'Requested file not found'}), 404
+            
+        filename = os.path.basename(target_file)
+        return send_from_directory(os.path.dirname(target_file), filename, as_attachment=True, download_name=filename)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/download-zip/<path:folder_name>')
 def download_zip(folder_name):
     """Serve the zipped AOI export archive for direct browser download."""
@@ -857,6 +890,20 @@ def export_geotiff():
         except Exception as ze:
             print(f"⚠️ Error creating zip archive: {ze}", flush=True)
         
+        # Determine smart download type: single .tif vs complete .zip
+        download_type = "zip"
+        direct_file_url = None
+        direct_file_name = None
+        
+        if dem_only and saved_dem_filename:
+            download_type = "file"
+            direct_file_url = f"/api/download-file/{folder_name}/{saved_dem_filename}?token={AUTH_TOKEN}"
+            direct_file_name = saved_dem_filename
+        elif not include_dem and saved_image_filename:
+            download_type = "file"
+            direct_file_url = f"/api/download-file/{folder_name}/{saved_image_filename}?token={AUTH_TOKEN}"
+            direct_file_name = saved_image_filename
+        
         return jsonify({
             'success': True,
             'folderName': folder_name,
@@ -865,7 +912,10 @@ def export_geotiff():
             'savedDemFile': saved_dem_filename,
             'imageDownloadUrl': image_download_url,
             'demDownloadUrl': dem_download_url,
-            'zipDownloadUrl': f"/api/download-zip/{folder_name}",
+            'downloadType': download_type,
+            'directFileDownloadUrl': direct_file_url,
+            'directFileName': direct_file_name,
+            'zipDownloadUrl': f"/api/download-zip/{folder_name}?token={AUTH_TOKEN}",
             'zipFileName': zip_filename,
             'savedFiles': [f for f in [saved_image_filename, saved_dem_filename, 'metadata.json'] if f],
             'scale': scale,

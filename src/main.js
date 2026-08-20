@@ -440,6 +440,15 @@ class SatelliteDataApp {
             document.querySelectorAll('.dropdown-menu.show').forEach(m => m.classList.remove('show'));
         }
     });
+
+    // Re-render table dynamically when DEM checkbox is toggled
+    if (this.elements.includeDemCheckbox) {
+        this.elements.includeDemCheckbox.addEventListener('change', () => {
+            if (this.state.scenes && this.state.scenes.length > 0) {
+                this.renderSceneTable(this.state.scenes);
+            }
+        });
+    }
   }
 
   handleCoordinateSearch() {
@@ -793,8 +802,17 @@ class SatelliteDataApp {
         });
     });
 
+    // Attach direct download button clicks (when DEM is disabled)
+    tbody.querySelectorAll('.direct-download-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const sceneId = btn.dataset.id;
+            this.downloadSingleScene(sceneId, { includeDem: false, demOnly: false });
+        });
+    });
+
     // Attach action dropdown triggers
-    tbody.querySelectorAll('.action-btn-trigger').forEach(btn => {
+    tbody.querySelectorAll('.action-dropdown .action-btn-trigger').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             const parent = btn.closest('.action-dropdown');
@@ -813,7 +831,7 @@ class SatelliteDataApp {
             const sceneId = item.dataset.id;
             item.closest('.dropdown-menu').classList.remove('show');
             
-            const includeDem = action === 'imagery-dem' || action === 'dem-only';
+            const includeDem = action === 'imagery-dem';
             const demOnly = action === 'dem-only';
             this.downloadSingleScene(sceneId, { includeDem, demOnly });
         });
@@ -856,6 +874,38 @@ class SatelliteDataApp {
     const isChecked = this.state.selectedScenes.has(scene.sceneId);
     const tileLabel = scene.tileId ? `Tile ${scene.tileId}` : (isS1 ? 'IW Swath' : 'Granule');
     const isFootprintActive = this.state.activeFootprintSceneId === scene.sceneId;
+    const includeDemGlobally = this.elements.includeDemCheckbox ? this.elements.includeDemCheckbox.checked : true;
+
+    let actionButtonHtml = '';
+    if (!includeDemGlobally) {
+        // DEM unchecked: Direct single .tif imagery download button
+        actionButtonHtml = `
+            <button class="action-btn-trigger direct-download-btn" data-action="imagery" data-id="${scene.sceneId}" title="Download Imagery GeoTIFF (.tif)">
+                <span>↓ Download (.tif)</span>
+            </button>
+        `;
+    } else {
+        // DEM checked: Dropdown offering Bundle (.zip), Image only (.tif), DEM only (.tif)
+        actionButtonHtml = `
+            <div class="action-dropdown" data-index="${index}">
+                <button class="action-btn-trigger" data-id="${scene.sceneId}" title="Download Options">
+                    <span>↓ Download</span>
+                    <span style="font-size: 0.65rem;">▾</span>
+                </button>
+                <div class="dropdown-menu" id="dropdown-${index}">
+                    <button class="dropdown-item" data-action="imagery-dem" data-id="${scene.sceneId}">
+                        📦 Download Bundle (Image + 30m DEM .zip)
+                    </button>
+                    <button class="dropdown-item" data-action="imagery" data-id="${scene.sceneId}">
+                        🛰️ Download Imagery Only (.tif)
+                    </button>
+                    <button class="dropdown-item" data-action="dem-only" data-id="${scene.sceneId}">
+                        🏔️ Download 30m DEM Only (.tif)
+                    </button>
+                </div>
+            </div>
+        `;
+    }
 
     return `
         <tr class="${isS1 ? 'row-s1' : 'row-s2'} ${isChildOfBundle ? 'row-bundle-child' : ''}">
@@ -884,24 +934,7 @@ class SatelliteDataApp {
                     <button class="btn-footprint-toggle ${isFootprintActive ? 'active' : ''}" data-id="${scene.sceneId}" title="Toggle Swath Footprint Boundary on Map">
                         <span>👁️ Footprint</span>
                     </button>
-                    
-                    <div class="action-dropdown" data-index="${index}">
-                        <button class="action-btn-trigger" data-id="${scene.sceneId}" title="Download Options">
-                            <span>↓ Download</span>
-                            <span style="font-size: 0.65rem;">▾</span>
-                        </button>
-                        <div class="dropdown-menu" id="dropdown-${index}">
-                            <button class="dropdown-item" data-action="imagery" data-id="${scene.sceneId}">
-                                🛰️ Download Imagery (.tif)
-                            </button>
-                            <button class="dropdown-item dem-item" data-action="imagery-dem" data-id="${scene.sceneId}">
-                                🏔️ Download with SRTM 30m DEM
-                            </button>
-                            <button class="dropdown-item dem-item" data-action="dem-only" data-id="${scene.sceneId}">
-                                📐 Download SRTM 30m DEM Only
-                            </button>
-                        </div>
-                    </div>
+                    ${actionButtonHtml}
                 </div>
             </td>
         </tr>
@@ -969,9 +1002,12 @@ class SatelliteDataApp {
             const folder = result.folderName || 'downloads';
             const files = result.savedFiles ? result.savedFiles.join(', ') : 'files';
             
-            // Trigger automatic browser file download (Chrome download style)
-            if (result.zipDownloadUrl) {
-                this.triggerDirectZipDownload(result.zipDownloadUrl, result.zipFileName);
+            // Smart direct browser download: single .tif vs complete .zip
+            if (result.downloadType === 'file' && result.directFileDownloadUrl) {
+                this.triggerDirectFileDownload(result.directFileDownloadUrl, result.directFileName);
+                this.updateStatus(`✅ Download started: ${result.directFileName}`);
+            } else if (result.zipDownloadUrl) {
+                this.triggerDirectFileDownload(result.zipDownloadUrl, result.zipFileName);
                 this.updateStatus(`✅ Download started: ${result.zipFileName} [${files}]`);
             } else {
                 this.updateStatus(`✅ Saved to folder "${folder}": [${files}]`);
@@ -987,12 +1023,12 @@ class SatelliteDataApp {
     }
   }
 
-  triggerDirectZipDownload(zipDownloadUrl, zipFileName) {
-    if (!zipDownloadUrl) return;
-    const fullUrl = zipDownloadUrl.startsWith('http') ? zipDownloadUrl : `${this.geeClient.backendUrl}${zipDownloadUrl}`;
+  triggerDirectFileDownload(downloadUrl, fileName) {
+    if (!downloadUrl) return;
+    const fullUrl = downloadUrl.startsWith('http') ? downloadUrl : `${this.geeClient.backendUrl}${downloadUrl}`;
     const link = document.createElement('a');
     link.href = fullUrl;
-    link.download = zipFileName || 'satellite_aoi_bundle.zip';
+    link.download = fileName || 'download';
     link.target = '_blank';
     document.body.appendChild(link);
     link.click();
