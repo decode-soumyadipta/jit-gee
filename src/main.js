@@ -204,34 +204,64 @@ class SatelliteDataApp {
             attributionControl: true
         }).setView([23.2599, 77.4126], 6);
 
-        // Define High Quality Base Maps
+        // High-Performance Tile Layer Configuration (Fast Edge CDNs + Memory Buffering)
+        const perfOptions = {
+            maxZoom: 20,
+            maxNativeZoom: 19,
+            keepBuffer: 6,            // Keeps 6 extra tile rings in memory for instant, seamless panning
+            updateWhenZooming: false, // Prevents request overload during pinch/scroll zoom animations
+            updateWhenIdle: false,    // Loads tiles immediately as motion starts
+            crossOrigin: true
+        };
+
+        // 1. Google High-Speed Global Anycast CDN (Sub-50ms latency worldwide)
+        const googleSatellite = L.tileLayer('https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+            ...perfOptions,
+            subdomains: ['0', '1', '2', '3'],
+            attribution: '&copy; Google Earth Imagery'
+        });
+
+        const googleHybrid = L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+            ...perfOptions,
+            subdomains: ['0', '1', '2', '3'],
+            attribution: '&copy; Google Satellite + Roads'
+        });
+
+        const googleTerrain = L.tileLayer('https://mt{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
+            ...perfOptions,
+            maxNativeZoom: 17,
+            subdomains: ['0', '1', '2', '3'],
+            attribution: '&copy; Google Physical Terrain'
+        });
+
+        // 2. OpenStreetMap with Multi-subdomain load balancing
         const osmStandard = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '© OpenStreetMap contributors | GEE & SRTM'
+            ...perfOptions,
+            subdomains: ['a', 'b', 'c'],
+            attribution: '© OpenStreetMap contributors'
         });
 
+        // 3. Esri World Imagery
         const esriSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            maxZoom: 19,
-            attribution: 'Tiles &copy; Esri &mdash; High-Resolution Earth Imagery'
+            ...perfOptions,
+            maxNativeZoom: 18,
+            attribution: 'Tiles &copy; Esri World Imagery'
         });
 
-        const esriTerrain = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
-            maxZoom: 19,
-            attribution: 'Tiles &copy; Esri &mdash; Topographic & Elevation Map'
-        });
-
+        // 4. Carto Dark Canvas
         const cartoDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            maxZoom: 19,
+            ...perfOptions,
+            subdomains: ['a', 'b', 'c', 'd'],
             attribution: '&copy; OpenStreetMap &copy; CARTO'
         });
 
         const hybridLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-            maxZoom: 19,
+            ...perfOptions,
             attribution: 'Boundaries & Labels &copy; Esri'
         });
 
-        // Default base layer
-        osmStandard.addTo(this.state.map);
+        // Set default layer to Google Hybrid (fastest & most detailed)
+        googleHybrid.addTo(this.state.map);
 
         this.state.drawnItems = new L.FeatureGroup();
         this.state.map.addLayer(this.state.drawnItems);
@@ -241,16 +271,18 @@ class SatelliteDataApp {
 
         // Layer Switcher Control (Top-Right)
         const baseMaps = {
-            "Standard Map (OSM)": osmStandard,
-            "Satellite Imagery (HD)": esriSatellite,
-            "Terrain / Topographic": esriTerrain,
-            "Dark Mode Canvas": cartoDark
+            "🛰️ Satellite + Labels (Google Hybrid)": googleHybrid,
+            "🛰️ Pure Satellite (Google HD)": googleSatellite,
+            "🏔️ Physical Terrain (Google)": googleTerrain,
+            "🗺️ Standard Streets (OSM)": osmStandard,
+            "🛰️ Satellite Imagery (Esri)": esriSatellite,
+            "🌙 Dark Canvas (Carto)": cartoDark
         };
 
         const overlayMaps = {
             "📍 Area of Interest (AOI)": this.state.drawnItems,
             "📡 Scene Swath Footprints": this.state.footprintLayers,
-            "🏷️ Boundaries & Place Labels": hybridLabels
+            "🏷️ Place Labels Overlay": hybridLabels
         };
 
         L.control.layers(baseMaps, overlayMaps, { position: 'topright', collapsed: true }).addTo(this.state.map);
