@@ -204,64 +204,37 @@ class SatelliteDataApp {
             attributionControl: true
         }).setView([23.2599, 77.4126], 6);
 
-        // High-Performance Tile Layer Configuration (Fast Edge CDNs + Memory Buffering)
+        // High-Performance Tile Layer Configuration
         const perfOptions = {
             maxZoom: 20,
             maxNativeZoom: 19,
-            keepBuffer: 6,            // Keeps 6 extra tile rings in memory for instant, seamless panning
-            updateWhenZooming: false, // Prevents request overload during pinch/scroll zoom animations
-            updateWhenIdle: false,    // Loads tiles immediately as motion starts
+            keepBuffer: 6,
+            updateWhenZooming: false,
+            updateWhenIdle: false,
             crossOrigin: true
         };
 
-        // 1. Google High-Speed Global Anycast CDN (Sub-50ms latency worldwide)
-        const googleSatellite = L.tileLayer('https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+        // 1. Standard Roadmap View
+        const standardLayer = L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
             ...perfOptions,
-            subdomains: ['0', '1', '2', '3'],
-            attribution: '&copy; Google Earth Imagery'
+            subdomains: ['0', '1', '2', '3']
         });
 
-        const googleHybrid = L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+        // 2. Satellite View (High-Res Aerial + Labels)
+        const satelliteLayer = L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
             ...perfOptions,
-            subdomains: ['0', '1', '2', '3'],
-            attribution: '&copy; Google Satellite + Roads'
+            subdomains: ['0', '1', '2', '3']
         });
 
-        const googleTerrain = L.tileLayer('https://mt{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
+        // 3. Terrain View (Topographic & Physical Relief)
+        const terrainLayer = L.tileLayer('https://mt{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
             ...perfOptions,
             maxNativeZoom: 17,
-            subdomains: ['0', '1', '2', '3'],
-            attribution: '&copy; Google Physical Terrain'
+            subdomains: ['0', '1', '2', '3']
         });
 
-        // 2. OpenStreetMap with Multi-subdomain load balancing
-        const osmStandard = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            ...perfOptions,
-            subdomains: ['a', 'b', 'c'],
-            attribution: '© OpenStreetMap contributors'
-        });
-
-        // 3. Esri World Imagery
-        const esriSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            ...perfOptions,
-            maxNativeZoom: 18,
-            attribution: 'Tiles &copy; Esri World Imagery'
-        });
-
-        // 4. Carto Dark Canvas
-        const cartoDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            ...perfOptions,
-            subdomains: ['a', 'b', 'c', 'd'],
-            attribution: '&copy; OpenStreetMap &copy; CARTO'
-        });
-
-        const hybridLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-            ...perfOptions,
-            attribution: 'Boundaries & Labels &copy; Esri'
-        });
-
-        // Set default layer to Google Hybrid (fastest & most detailed)
-        googleHybrid.addTo(this.state.map);
+        // Set default layer
+        standardLayer.addTo(this.state.map);
 
         this.state.drawnItems = new L.FeatureGroup();
         this.state.map.addLayer(this.state.drawnItems);
@@ -269,20 +242,16 @@ class SatelliteDataApp {
         this.state.footprintLayers = new L.FeatureGroup();
         this.state.map.addLayer(this.state.footprintLayers);
 
-        // Layer Switcher Control (Top-Right)
+        // Layer Switcher Control (3 Clean Base Views, Zero Emojis)
         const baseMaps = {
-            "🛰️ Satellite + Labels (Google Hybrid)": googleHybrid,
-            "🛰️ Pure Satellite (Google HD)": googleSatellite,
-            "🏔️ Physical Terrain (Google)": googleTerrain,
-            "🗺️ Standard Streets (OSM)": osmStandard,
-            "🛰️ Satellite Imagery (Esri)": esriSatellite,
-            "🌙 Dark Canvas (Carto)": cartoDark
+            "Standard View": standardLayer,
+            "Satellite View": satelliteLayer,
+            "Terrain View": terrainLayer
         };
 
         const overlayMaps = {
-            "📍 Area of Interest (AOI)": this.state.drawnItems,
-            "📡 Scene Swath Footprints": this.state.footprintLayers,
-            "🏷️ Place Labels Overlay": hybridLabels
+            "Area of Interest (AOI)": this.state.drawnItems,
+            "Acquisition Footprints": this.state.footprintLayers
         };
 
         L.control.layers(baseMaps, overlayMaps, { position: 'topright', collapsed: true }).addTo(this.state.map);
@@ -809,16 +778,16 @@ class SatelliteDataApp {
                         <div class="bundle-header-card">
                             <div class="bundle-title-col">
                                 <span class="badge ${isS1 ? 'badge-s1' : 'badge-s2'}">${satellite}</span>
-                                <strong>📅 ${date}</strong>
-                                <span class="bundle-tag">📦 Multi-Tile Bundle (${groupScenes.length} Granules)</span>
+                                <strong>${date}</strong>
+                                <span class="bundle-tag">Multi-Tile Bundle (${groupScenes.length} Granules)</span>
                                 <span class="bundle-coverage-tag">Total AOI Coverage: ${combinedCov}% (Mosaic)</span>
                             </div>
                             <div class="bundle-actions-col">
                                 <button class="btn-footprint-toggle btn-bundle-footprints" data-scenes="${groupScenesJson}">
-                                    👁️ Show Bundle Footprints
+                                    Show Footprints
                                 </button>
                                 <button class="btn-bundle-mosaic" data-date="${date}" data-satellite="${satellite}">
-                                    ⚡ Download Date Mosaic (.tif)
+                                    Download Date Mosaic (.tif)
                                 </button>
                             </div>
                         </div>
@@ -954,7 +923,7 @@ class SatelliteDataApp {
             // DEM unchecked: Direct single .tif imagery download button
             actionButtonHtml = `
             <button class="action-btn-trigger direct-download-btn" data-action="imagery" data-id="${scene.sceneId}" title="Download Imagery GeoTIFF (.tif)">
-                <span>↓ Download (.tif)</span>
+                <span>Download (.tif)</span>
             </button>
         `;
         } else {
@@ -962,18 +931,18 @@ class SatelliteDataApp {
             actionButtonHtml = `
             <div class="action-dropdown" data-index="${index}">
                 <button class="action-btn-trigger" data-id="${scene.sceneId}" title="Download Options">
-                    <span>↓ Download</span>
+                    <span>Download</span>
                     <span style="font-size: 0.65rem;">▾</span>
                 </button>
                 <div class="dropdown-menu" id="dropdown-${index}">
                     <button class="dropdown-item" data-action="imagery-dem" data-id="${scene.sceneId}">
-                        📦 Download Bundle (Image + 30m DEM .zip)
+                        Download Bundle (Image + 30m DEM .zip)
                     </button>
                     <button class="dropdown-item" data-action="imagery" data-id="${scene.sceneId}">
-                        🛰️ Download Imagery Only (.tif)
+                        Download Imagery Only (.tif)
                     </button>
                     <button class="dropdown-item" data-action="dem-only" data-id="${scene.sceneId}">
-                        🏔️ Download 30m DEM Only (.tif)
+                        Download 30m DEM Only (.tif)
                     </button>
                 </div>
             </div>
@@ -999,13 +968,13 @@ class SatelliteDataApp {
                     </div>
                 </div>
             </td>
-            <td>${isS1 ? '<span style="color:#94A3B8;">N/A (SAR)</span>' : `<span class="cloud-badge ${cloudBadgeClass}">☁️ ${scene.cloudCover}%</span>`}</td>
+            <td>${isS1 ? '<span style="color:#94A3B8;">N/A (SAR)</span>' : `<span class="cloud-badge ${cloudBadgeClass}">${scene.cloudCover}%</span>`}</td>
             <td style="font-family: var(--font-mono); font-size: 0.75rem;">${scene.orbit || 'N/A'}</td>
             <td><span class="proximity-badge ${proxClass}">${proximityText}</span></td>
             <td style="text-align: right;">
                 <div style="display: inline-flex; align-items: center; gap: 0.35rem;">
                     <button class="btn-footprint-toggle ${isFootprintActive ? 'active' : ''}" data-id="${scene.sceneId}" title="Toggle Swath Footprint Boundary on Map">
-                        <span>👁️ Footprint</span>
+                        <span>Footprint</span>
                     </button>
                     ${actionButtonHtml}
                 </div>
